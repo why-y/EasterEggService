@@ -9,6 +9,7 @@ import java.util.stream.Stream;
 
 import ch.gry.java.example.model.Paint;
 import ch.gry.java.example.model.type.Color;
+import rx.Observable;
 
 public class PaintService {
 
@@ -24,19 +25,30 @@ public class PaintService {
 		Stream.of(Color.values()).forEach(c -> paintShelf.put(c, new Long(0)));
 	}
 	
-	public Paint getPaint(final Color color, long quantity) {
+	public Observable<Paint> getPaint(final Color color, long quantity) {
 		Long currentQuantity = paintShelf.get(color);
 		logger.info(String.format("get %dml of %s (stock has %dml) ...", quantity, color, currentQuantity));
-		if(currentQuantity>=quantity) {
-			paintShelf.put(color, currentQuantity-quantity);
-			Paint newPaint = new Paint(color, quantity);
-			logger.info(" immediatly return " + newPaint);
-			return newPaint;
-		}
-		else{
+		
+		if(currentQuantity<quantity) {
 			logger.info("... must produce more paint ...");
-			produceNewPaint(color);
-			return getPaint(color, quantity);
+			produceMorePaint(color);
+			return getPaint(color, quantity);			
+		}
+		else {
+			return Observable.create((observer)->{
+				try {
+					if(!observer.isUnsubscribed()) {
+						paintShelf.put(color, currentQuantity-quantity);
+						Paint newPaint = new Paint(color, quantity);
+						logger.info(" immediatly return " + newPaint);
+						observer.onNext(newPaint);
+						observer.onCompleted();
+					}				
+				} catch (Throwable e) {
+					observer.onError(e);
+				}
+			});		
+			
 		}
 	}
 	
@@ -46,7 +58,7 @@ public class PaintService {
 		}
 	}
 	
-	private void produceNewPaint(final Color color){
+	private void produceMorePaint(final Color color){
 		countDownLatch = new CountDownLatch(1);
 		
 		// production time depends on the productionQuantity

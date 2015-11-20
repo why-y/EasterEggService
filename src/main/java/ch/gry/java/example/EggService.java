@@ -64,17 +64,6 @@ public class EggService {
 		});
 	}
 	
-//	private Egg grabEgg() {
-//		try {
-//			Egg grabbedEgg = eggShelf.take();
-//			logger.info(String.format("Thread: %3d |   << TAKE %s from shelf   new shelf count(%d/%d)", Thread.currentThread().getId(), grabbedEgg, eggShelf.size(), shelfCapacity.get()));
-//			return grabbedEgg;
-//		} catch (InterruptedException e) {
-//			logger.severe("Grabbing the next egg has been interrupted! returns null.");
-//			return null;
-//		}		
-//	}
-
 	void layEgg() {
 		Random rand = new Random();
 		// variance of 30.0 grams

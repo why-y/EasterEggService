@@ -57,13 +57,13 @@ public class TestEggService {
 	@Test
 	public void testStartStopEggLayingTask() throws InterruptedException {
 		
-		Thread.sleep(650);
+		Thread.sleep(250);
 
 		long start = System.currentTimeMillis();
 		
 		List<Egg> eggs =  new ArrayList<>();
 		service.grabEggs(6).subscribe(
-				egg -> {eggs.add(egg);},
+				egg -> {eggs.add(egg);System.out.println(egg + " size:" + eggs.size());},
 				e -> e.printStackTrace());
 		
 		long duration = System.currentTimeMillis()-start;

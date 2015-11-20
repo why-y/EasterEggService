@@ -1,7 +1,5 @@
 package ch.gry.java.example;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 import java.util.logging.Logger;
 
@@ -9,6 +7,7 @@ import ch.gry.java.example.model.EasterEgg;
 import ch.gry.java.example.model.Egg;
 import ch.gry.java.example.model.Paint;
 import ch.gry.java.example.model.type.Color;
+import rx.Observable;
 
 public class EasterEggService {
 	
@@ -23,26 +22,28 @@ public class EasterEggService {
 		eggService.startEggProduction();
 	}
 	
-	public List<EasterEgg> getEasterEggs(final Map<Color,Integer> order) {
+	public Observable<EasterEgg> getEasterEggs(final Map<Color,Integer> colorSetting) {
 		
-		Integer noOfAllEggs = order.values().stream().reduce(0, (a, b) -> a+b);
+		// flatten the colorSetting-map from e.g. {(BLUE:3),(RED:2),(GREEN:4)}
+		// to {BLUE,BLUE,BLUE,RED,RED,GREEN,GREEN,GREEN,GREEN}
+		Observable<Color> flatColorSetting = Observable
+				.from(colorSetting.keySet())
+				.flatMap(c-> Observable.just(c).repeat(colorSetting.get(c)));
+
+		Integer noOfEggs = colorSetting.values().stream().reduce(0, (a, b) -> a+b);
 		
-		List<EasterEgg> easterEggs = new ArrayList<>(noOfAllEggs);
+		Observable<Egg> eggs = eggService.grabEggs(noOfEggs);
 		
-		for (Color color : order.keySet()) {
-			logger.info("Color: " + color);
-			Integer noOfEggs = order.get(color);
-			if(noOfEggs>0) {
-				eggService.grabEggs(noOfEggs).subscribe(egg -> {
-					logger.info("   Egg: " + egg);
-					Paint requiredPaint = paintService.getPaint(color, calculatePaintQuantity(egg));
-					easterEggs.add(colorizeEgg(egg, requiredPaint));
-				});
-			}
-		}
+		Observable<EasterEgg> easterEggs = eggs.zipWith(flatColorSetting, (egg, color) -> {
+			long paintQuantity = calculatePaintQuantity(egg);
+			
+			// TODO: get paint from paintService instead:
+			Paint paint = new Paint(color, paintQuantity);
+			
+			return colorizeEgg(egg, paint);
+		});
 		
-		logger.info("EasterEggs: " + easterEggs);
-		return null;
+		return easterEggs;
 	}
 	
 	public EasterEgg colorizeEgg(final Egg egg, final Paint paint) {

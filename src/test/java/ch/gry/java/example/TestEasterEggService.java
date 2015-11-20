@@ -18,6 +18,7 @@ import ch.gry.java.example.model.EasterEgg;
 import ch.gry.java.example.model.Egg;
 import ch.gry.java.example.model.Paint;
 import ch.gry.java.example.model.type.Color;
+import rx.Observable;
 
 public class TestEasterEggService {
 
@@ -55,15 +56,26 @@ public class TestEasterEggService {
 	}
 
 	@Test
-	public void testEasterEggs() {
-		Map<Color, Integer> order = new HashMap<>();
-		order.put(Color.RED, 1);
-		order.put(Color.BLUE, 2);
-		order.put(Color.YELLOW, 3);
+	public void testEasterEggs() throws InterruptedException {
+		Thread.sleep(10);
+		Map<Color, Integer> colorSetting = new HashMap<>();
+		colorSetting.put(Color.RED, 1);
+		colorSetting.put(Color.BLUE, 2);
+		colorSetting.put(Color.YELLOW, 3);
 		Instant start = Instant.now();
-		service.getEasterEggs(order);
+		service.getEasterEggs(colorSetting).subscribe(System.out::println);
 		Duration duration = Duration.between(start, Instant.now());
 		System.out.println("Duration: " + duration);
 	}
 
+	@Test
+	public void dummy() {
+		Map<Color, Integer> colorSetting = new HashMap<>();
+		colorSetting.put(Color.RED, 1);
+		colorSetting.put(Color.BLUE, 2);
+		colorSetting.put(Color.YELLOW, 3);
+		Observable.from(colorSetting.keySet()).flatMap(c-> Observable.just(c).repeat(colorSetting.get(c)))
+			.subscribe(System.out::println);
+		
+	}
 }
