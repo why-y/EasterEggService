@@ -1,8 +1,6 @@
 package ch.gry.java.example;
 
 import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Random;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
@@ -12,6 +10,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Logger;
 
 import ch.gry.java.example.model.Egg;
+import rx.Observable;
 
 public class EggService {
 
@@ -50,25 +49,31 @@ public class EggService {
 		countDownLatch.countDown();
 	}
 	
-	public List<Egg> grabEggs(int noOfRequestedEggs) {
-		List<Egg> result = new ArrayList<>(noOfRequestedEggs);
-		logger.info(String.format("-> Request to grab %d eggs! Currently %d available!", noOfRequestedEggs, eggShelf.size()));
-		for(int i=0; i<noOfRequestedEggs; i++) {
-			result.add(grabEgg());
-		}
-		return result;
+	public Observable<Egg> grabEggs(final int noOfRequestedEggs) {
+		return Observable.create((observer)->{
+			try {
+				if(!observer.isUnsubscribed()) {
+					for (int i = 0; i < noOfRequestedEggs; i++) {
+						observer.onNext(eggShelf.take());
+					}
+					observer.onCompleted();
+				}				
+			} catch (Throwable e) {
+				observer.onError(e);
+			}
+		});
 	}
 	
-	public Egg grabEgg() {
-		try {
-			Egg grabbedEgg = eggShelf.take();
-			logger.info(String.format("Thread: %3d |   << TAKE %s from shelf   new shelf count(%d/%d)", Thread.currentThread().getId(), grabbedEgg, eggShelf.size(), shelfCapacity.get()));
-			return grabbedEgg;
-		} catch (InterruptedException e) {
-			logger.severe("Grabbing the next egg has been interrupted! returns null.");
-			return null;
-		}		
-	}
+//	private Egg grabEgg() {
+//		try {
+//			Egg grabbedEgg = eggShelf.take();
+//			logger.info(String.format("Thread: %3d |   << TAKE %s from shelf   new shelf count(%d/%d)", Thread.currentThread().getId(), grabbedEgg, eggShelf.size(), shelfCapacity.get()));
+//			return grabbedEgg;
+//		} catch (InterruptedException e) {
+//			logger.severe("Grabbing the next egg has been interrupted! returns null.");
+//			return null;
+//		}		
+//	}
 
 	void layEgg() {
 		Random rand = new Random();

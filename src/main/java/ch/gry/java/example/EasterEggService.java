@@ -33,12 +33,11 @@ public class EasterEggService {
 			logger.info("Color: " + color);
 			Integer noOfEggs = order.get(color);
 			if(noOfEggs>0) {
-				List<Egg> eggs = eggService.grabEggs(noOfEggs);
-				for (Egg egg : eggs) {
+				eggService.grabEggs(noOfEggs).subscribe(egg -> {
 					logger.info("   Egg: " + egg);
 					Paint requiredPaint = paintService.getPaint(color, calculatePaintQuantity(egg));
 					easterEggs.add(colorizeEgg(egg, requiredPaint));
-				}
+				});
 			}
 		}
 		

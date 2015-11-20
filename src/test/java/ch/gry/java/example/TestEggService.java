@@ -3,6 +3,7 @@
  */
 package ch.gry.java.example;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import org.junit.After;
@@ -59,10 +60,15 @@ public class TestEggService {
 		Thread.sleep(650);
 
 		long start = System.currentTimeMillis();
-		List<Egg> eggs = service.grabEggs(6);
+		
+		List<Egg> eggs =  new ArrayList<>();
+		service.grabEggs(6).subscribe(
+				egg -> {eggs.add(egg);},
+				e -> e.printStackTrace());
+		
 		long duration = System.currentTimeMillis()-start;
 
-		System.out.println(String.format("grabbed %d eggs in %d milliseconds!", eggs.size(), duration));	
+		System.out.println(String.format("grabbed %d eggs in %d milliseconds: %s", eggs.size(), duration, eggs));	
 		
 	}
 	
