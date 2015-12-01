@@ -57,7 +57,8 @@ public class TestPaintService {
 	public void testSomePaint() {
 		for(int i=0; i<8; ++i) {
 			Instant start = Instant.now();
-			service.getPaint(Color.YELLOW, 120);
+			service.getPaint(Color.YELLOW, 120)
+				.subscribe(paint -> System.out.println("Received -> " + paint));
 			System.out.println("getting yellow took " + Duration.between(start, Instant.now()));
 		}
 	}

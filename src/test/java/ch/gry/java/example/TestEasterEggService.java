@@ -8,17 +8,17 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
 
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import ch.gry.java.example.EasterEggService;
 import ch.gry.java.example.model.EasterEgg;
 import ch.gry.java.example.model.Egg;
 import ch.gry.java.example.model.Paint;
 import ch.gry.java.example.model.type.Color;
-import rx.Observable;
+import rx.schedulers.Schedulers;
 
 public class TestEasterEggService {
 
@@ -52,30 +52,34 @@ public class TestEasterEggService {
 		assertEquals(53.3d, easterEgg.getWeight(), 0.0001d);
 		assertEquals(Color.BLUE, easterEgg.getColor());
 		Duration duration = Duration.between(start, Instant.now());
-		assertTrue(duration.getNano()>200000000 & duration.getNano()<220000000);		
+		assertTrue(duration.getNano()>=200000000 & duration.getNano()<220000000);		
 	}
 
 	@Test
 	public void testEasterEggs() throws InterruptedException {
-		Thread.sleep(10);
+		long t0 = System.currentTimeMillis();
+		CountDownLatch cdl = new CountDownLatch(1);
+		System.out.println(String.format("[%6.3fs] ======= START TEST =========", (System.currentTimeMillis()-t0)/1000.0));
+//		Thread.sleep(1000);
 		Map<Color, Integer> colorSetting = new HashMap<>();
-		colorSetting.put(Color.RED, 1);
-		colorSetting.put(Color.BLUE, 2);
+		
+		///////////// order //////////////
+		colorSetting.put(Color.RED, 2);
+		colorSetting.put(Color.BLUE, 1);
 		colorSetting.put(Color.YELLOW, 3);
-		Instant start = Instant.now();
-		service.getEasterEggs(colorSetting).subscribe(System.out::println);
-		Duration duration = Duration.between(start, Instant.now());
-		System.out.println("Duration: " + duration);
+		colorSetting.put(Color.GREEN, 4);
+		//////////////////////////////////
+		
+		service.getEasterEggs(colorSetting)
+			.subscribeOn(Schedulers.newThread())
+			.subscribe(
+					egg -> {
+						System.out.println(String.format("[%6.3fs] -> Received: %s", (System.currentTimeMillis()-t0)/1000.0, egg));
+					},
+					e -> e.printStackTrace(),
+					() -> cdl.countDown());
+		cdl.await();
+		System.out.println(String.format("[%6.3fs] ======= START END =========", (System.currentTimeMillis()-t0)/1000.0));
 	}
 
-	@Test
-	public void dummy() {
-		Map<Color, Integer> colorSetting = new HashMap<>();
-		colorSetting.put(Color.RED, 1);
-		colorSetting.put(Color.BLUE, 2);
-		colorSetting.put(Color.YELLOW, 3);
-		Observable.from(colorSetting.keySet()).flatMap(c-> Observable.just(c).repeat(colorSetting.get(c)))
-			.subscribe(System.out::println);
-		
-	}
 }

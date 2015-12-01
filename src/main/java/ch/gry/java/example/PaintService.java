@@ -1,77 +1,101 @@
 package ch.gry.java.example;
 
+import java.util.Arrays;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.logging.Logger;
-import java.util.stream.Stream;
+import java.util.logging.Level;
 
 import ch.gry.java.example.model.Paint;
 import ch.gry.java.example.model.type.Color;
 import rx.Observable;
 
-public class PaintService {
+/**
+ * Service to obtain a desired color and amount of paint from the managed PaintStorage.
+ * @author yvesgross
+ */
+public class PaintService extends Service {
 
-    private static final Logger logger = Logger.getLogger(PaintService.class.getName());
+	private PaintStorage paintStorage; 
 
-	ConcurrentHashMap<Color, Long> paintShelf = new ConcurrentHashMap<>(Color.values().length);
-	AtomicLong productionQuantity;
-
-	private CountDownLatch countDownLatch;
-
+	/**
+	 * PaintService constructor
+	 * @param productionQuantity Define the quantity[milliliters] of paint to be reproduced, 
+	 * once the requested paint cannot be served from the paint storage.
+	 */
 	public PaintService(Long productionQuantity) {
-		this.productionQuantity = new AtomicLong(productionQuantity);
-		Stream.of(Color.values()).forEach(c -> paintShelf.put(c, new Long(0)));
+		paintStorage = new PaintStorage(productionQuantity);
 	}
 	
-	public Observable<Paint> getPaint(final Color color, long quantity) {
-		Long currentQuantity = paintShelf.get(color);
-		logger.info(String.format("get %dml of %s (stock has %dml) ...", quantity, color, currentQuantity));
+	/**
+	 * Delivers the paint of the requested color and quantity.
+	 * If the storage doesn't contain enough of the requested paint, it will
+	 * wait for the remaining paint to be produced.
+	 * @param color The requested paint color
+	 * @param requestedQuantity The requested paint quantity [milliliters]
+	 * @return
+	 */
+	public Observable<Paint> getPaint(final Color color, long requestedQuantity) {
+
+		return Observable.create(observer -> {
+			log(String.format("request %dml of %s (PaintStorage has %dml remaining)", requestedQuantity, color, paintStorage.remainingQuantity(color)));
+			while(paintStorage.remainingQuantity(color) < requestedQuantity){
+				paintStorage.producePaint(color); // this takes time!
+			}
+			if(!observer.isUnsubscribed()) {
+				observer.onNext(paintStorage.tapPaint(color, requestedQuantity));
+				observer.onCompleted();
+			}
+		});
 		
-		if(currentQuantity<quantity) {
-			logger.info("... must produce more paint ...");
-			produceMorePaint(color);
-			return getPaint(color, quantity);			
+	}
+	
+	
+	
+	//////////////////// private stuff /////////////////////////////
+
+	private static class PaintStorage extends Service {
+
+		AtomicLong productionQuantity;
+		
+		private ConcurrentHashMap<Color, Long> paintBarrels = new ConcurrentHashMap<>(Color.values().length);
+		
+		public PaintStorage(Long productionQuantity) {
+			this.productionQuantity = new AtomicLong(productionQuantity);
+			Arrays.asList(Color.values()).stream().forEach(c -> paintBarrels.put(c, 0L));
 		}
-		else {
-			return Observable.create((observer)->{
-				try {
-					if(!observer.isUnsubscribed()) {
-						paintShelf.put(color, currentQuantity-quantity);
-						Paint newPaint = new Paint(color, quantity);
-						logger.info(" immediatly return " + newPaint);
-						observer.onNext(newPaint);
-						observer.onCompleted();
-					}				
-				} catch (Throwable e) {
-					observer.onError(e);
-				}
-			});		
+
+		public long remainingQuantity(final Color color) {
+			return paintBarrels.get(color);
+		}
+		
+		public Paint tapPaint(final Color color, long requestetQuantity) {
+			if(remainingQuantity(color) >= requestetQuantity) {
+				paintBarrels.put(color, remainingQuantity(color)-requestetQuantity);
+				return new Paint(color, requestetQuantity);
+			}
+			else {
+				log(String.format("Not enough %s available! requested:%d, remaining:%d", color, requestetQuantity, remainingQuantity(color)), Level.WARNING);
+				return null;				
+			}
+		}
+		
+		public void producePaint(final Color color){
+			CountDownLatch cdl = new CountDownLatch(1);
 			
+			// production time depends on the quantity
+			final int productivity = 2;
+			long productionTime = productionQuantity.get()/productivity;
+			
+			try {
+				log(String.format(" ----> about to produce %dml of %s", productionQuantity.get(), color));
+				cdl.await(productionTime, TimeUnit.MILLISECONDS);
+				paintBarrels.put(color, remainingQuantity(color) + productionQuantity.get());
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
 		}
 	}
 	
-	public void terminateProduction() {
-		while (countDownLatch.getCount()>0) {
-			countDownLatch.countDown();
-		}
-	}
-	
-	private void produceMorePaint(final Color color){
-		countDownLatch = new CountDownLatch(1);
-		
-		// production time depends on the productionQuantity
-		final int productivity = 2;
-		long productionTime = productionQuantity.get()/productivity;
-		
-		logger.info("ProductionTime : " + productionTime);
-		try {
-			countDownLatch.await(productionTime, TimeUnit.MILLISECONDS);
-			Long currentQuantity = paintShelf.get(color);
-			paintShelf.put(color, currentQuantity+productionQuantity.get());
-		} catch (InterruptedException e) {
-			e.printStackTrace();
-		}
-	}
 }

@@ -2,15 +2,25 @@ package ch.gry.java.example.model;
 
 import java.time.LocalDate;
 
+/**
+ * A data bean representing an egg specified by
+ * the attributes {@link #layingDate} and {@link #weight} in milligrams. 
+ * @author yvesgross
+ */
 public class Egg {
 	
 	LocalDate layingDate;
 	double weight;
 	
+	private int id;
+	private static int idCounter = 0;
+	
+	
 	public Egg(LocalDate layingDate, double weight) {
 		super();
 		this.layingDate = layingDate;
 		this.weight = weight;
+		this.id = idCounter++;
 	}
 	public LocalDate getLayingDate() {
 		return layingDate;
@@ -26,7 +36,7 @@ public class Egg {
 	}
 	@Override
 	public String toString() {
-		return "Egg [layingDate=" + layingDate + ", weight=" + weight + "]";
+		return "Egg[" + this.id + "]";
 	}
 	
 }

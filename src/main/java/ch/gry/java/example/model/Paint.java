@@ -1,8 +1,17 @@
 package ch.gry.java.example.model;
 
+import java.io.Serializable;
+
 import ch.gry.java.example.model.type.Color;
 
-public class Paint {
+/**
+ * A data bean representing a certain amount of paint,
+ * defined by {@linkplain ch.gry.java.example.model.type.Color Color} and {@link #quantity}. 
+ * @author yvesgross
+ */
+public class Paint implements Serializable{
+	
+	private static final long serialVersionUID = 1L;
 	
 	private Color color;
 	private long quantity;
@@ -19,7 +28,7 @@ public class Paint {
 	public void setColor(Color color) {
 		this.color = color;
 	}
-	public double getQuantity() {
+	public long getQuantity() {
 		return quantity;
 	}
 	public void setQuantity(long quantity) {

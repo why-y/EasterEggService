@@ -1,7 +1,7 @@
 package ch.gry.java.example;
 
 import java.util.Map;
-import java.util.logging.Logger;
+import java.util.logging.Level;
 
 import ch.gry.java.example.model.EasterEgg;
 import ch.gry.java.example.model.Egg;
@@ -9,19 +9,30 @@ import ch.gry.java.example.model.Paint;
 import ch.gry.java.example.model.type.Color;
 import rx.Observable;
 
-public class EasterEggService {
+/**
+ * Service to obtain easter eggs according a the desired color setting
+ * @author yvesgross
+ */
+public class EasterEggService extends Service  {
 	
-    private static final Logger logger = Logger.getLogger(EasterEggService.class.getName());
-
 	private static final int COLORING_DURATION = 200; // [ms]
 	
-	private EggService eggService =  new EggService(10, 1000);
+	private EggService eggService =  new EggService(4, 300);
 	private PaintService paintService = new PaintService(500L);
 	
+	/**
+	 * EasterEgg constructor
+	 */
 	public EasterEggService() {
-		eggService.startEggProduction();
+		eggService.startEggProductionTask();
 	}
 	
+	/**
+	 * Returns easter eggs according to a desired color setting, 
+	 * e.g (two blue eggs, three red eggs and six green eggs).
+	 * @param colorSetting
+	 * @return
+	 */
 	public Observable<EasterEgg> getEasterEggs(final Map<Color,Integer> colorSetting) {
 		
 		// flatten the colorSetting-map from e.g. {(BLUE:3),(RED:2),(GREEN:4)}
@@ -31,31 +42,36 @@ public class EasterEggService {
 				.flatMap(c-> Observable.just(c).repeat(colorSetting.get(c)));
 
 		Integer noOfEggs = colorSetting.values().stream().reduce(0, (a, b) -> a+b);
+		Observable<Egg> eggs = eggService.pickEggs(noOfEggs);
 		
-		Observable<Egg> eggs = eggService.grabEggs(noOfEggs);
-		
-		Observable<EasterEgg> easterEggs = eggs.zipWith(flatColorSetting, (egg, color) -> {
+		Observable<Observable<EasterEgg>> easterEggsObservables = eggs.zipWith(flatColorSetting, (egg, color) -> {
 			long paintQuantity = calculatePaintQuantity(egg);
-			
-			// TODO: get paint from paintService instead:
-			Paint paint = new Paint(color, paintQuantity);
-			
-			return colorizeEgg(egg, paint);
+			return paintService
+					.getPaint(color, paintQuantity)
+					.map(p -> colorizeEgg(egg, p));
 		});
 		
+		// flatten Observable of Observabless
+		Observable<EasterEgg> easterEggs = Observable.switchOnNext(easterEggsObservables);
+				
 		return easterEggs;
 	}
 	
-	public EasterEgg colorizeEgg(final Egg egg, final Paint paint) {
-		if(paint.getQuantity() < calculatePaintQuantity(egg)) {
-			logger.warning("Not enough paint for the given egg! Return null.");
+	
+	//////////////////// private stuff /////////////////////////////
+	
+	EasterEgg colorizeEgg(final Egg egg, final Paint paint) {
+		log(String.format("colorizeEgg: %s with %s", egg, paint));
+		long requiredQuantity = calculatePaintQuantity(egg);
+		if(paint.getQuantity() < requiredQuantity) {
+			log(String.format("Not enough paint for the given %s! Required:%dml, Received:%dml. -> Return null.", egg, requiredQuantity, paint.getQuantity()),  Level.WARNING);
 			return null;
 		}
 		try {
 			Thread.sleep(COLORING_DURATION);
 			return new EasterEgg(egg, paint.getColor());
 		} catch (InterruptedException e) {
-			logger.severe(String.format("Coloring %s has been interrupted! return null.", egg));
+			log(String.format("Coloring %s has been interrupted! return null.", egg), Level.SEVERE);
 			return null;
 		}
 	}
@@ -65,9 +81,10 @@ public class EasterEggService {
 	 * @param egg
 	 * @return paint quantity in milliliters
 	 */
-	public long calculatePaintQuantity(final Egg egg) {
+	long calculatePaintQuantity(final Egg egg) {
 		int factor = 1;
-		// round up to be on the safe side
-		return (long) Math.ceil(egg.getWeight()*factor);
+		long ret = (long) Math.ceil(egg.getWeight()*factor);
+		log(String.format("============= calculated paint for %s is %d", egg, ret));
+		return ret;
 	}
 }
