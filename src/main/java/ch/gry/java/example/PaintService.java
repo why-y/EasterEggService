@@ -17,15 +17,33 @@ import rx.Observable;
  */
 public class PaintService extends Service {
 
-	private PaintStorage paintStorage; 
-
+	private PaintStorage paintStorage = new PaintStorage();
+	
+	private static final PaintService instance = new PaintService();
+	
+	// explicitly declared private
+	private PaintService() {
+	}
+	
 	/**
-	 * PaintService constructor
-	 * @param productionQuantity Define the quantity[milliliters] of paint to be reproduced, 
-	 * once the requested paint cannot be served from the paint storage.
+	 * Return the instance of this Singleton
+	 * @return The unique instance of this Service
 	 */
-	public PaintService(Long productionQuantity) {
-		paintStorage = new PaintStorage(productionQuantity);
+	public static final PaintService getInstance() {
+		return instance;
+	}
+	
+	/**
+	 * TODO:
+	 * @param color
+	 * @param requestedQuantity
+	 * @return
+	 */
+	public Paint getPaint(final Color color, long requestedQuantity) {
+		while(paintStorage.remainingQuantity(color) < requestedQuantity){
+			paintStorage.producePaint(color); // this takes time!
+		}
+		return paintStorage.tapPaint(color, requestedQuantity);
 	}
 	
 	/**
@@ -36,7 +54,7 @@ public class PaintService extends Service {
 	 * @param requestedQuantity The requested paint quantity [milliliters]
 	 * @return
 	 */
-	public Observable<Paint> getPaint(final Color color, long requestedQuantity) {
+	public Observable<Paint> getPaint_rx(final Color color, long requestedQuantity) {
 
 		return Observable.create(observer -> {
 			log(String.format("request %dml of %s (PaintStorage has %dml remaining)", requestedQuantity, color, paintStorage.remainingQuantity(color)));
@@ -48,21 +66,18 @@ public class PaintService extends Service {
 				observer.onCompleted();
 			}
 		});
-		
 	}
-	
-	
+
 	
 	//////////////////// private stuff /////////////////////////////
 
 	private static class PaintStorage extends Service {
 
-		AtomicLong productionQuantity;
+		private static final AtomicLong productionQuantity = new AtomicLong(200l);
 		
 		private ConcurrentHashMap<Color, Long> paintBarrels = new ConcurrentHashMap<>(Color.values().length);
 		
-		public PaintStorage(Long productionQuantity) {
-			this.productionQuantity = new AtomicLong(productionQuantity);
+		public PaintStorage() {
 			Arrays.asList(Color.values()).stream().forEach(c -> paintBarrels.put(c, 0L));
 		}
 
@@ -70,13 +85,13 @@ public class PaintService extends Service {
 			return paintBarrels.get(color);
 		}
 		
-		public Paint tapPaint(final Color color, long requestetQuantity) {
-			if(remainingQuantity(color) >= requestetQuantity) {
-				paintBarrels.put(color, remainingQuantity(color)-requestetQuantity);
-				return new Paint(color, requestetQuantity);
+		public Paint tapPaint(final Color color, long requestedQuantity) {
+			if(remainingQuantity(color) >= requestedQuantity) {
+				paintBarrels.put(color, remainingQuantity(color)-requestedQuantity);
+				return new Paint(color, requestedQuantity);
 			}
 			else {
-				log(String.format("Not enough %s available! requested:%d, remaining:%d", color, requestetQuantity, remainingQuantity(color)), Level.WARNING);
+				log(String.format("Not enough %s available! requested:%d, remaining:%d", color, requestedQuantity, remainingQuantity(color)), Level.WARNING);
 				return null;				
 			}
 		}
@@ -89,9 +104,10 @@ public class PaintService extends Service {
 			long productionTime = productionQuantity.get()/productivity;
 			
 			try {
-				log(String.format(" ----> about to produce %dml of %s", productionQuantity.get(), color));
+				log(String.format("    producing %dml of %s paint ... ", productionQuantity.get(), color));
 				cdl.await(productionTime, TimeUnit.MILLISECONDS);
 				paintBarrels.put(color, remainingQuantity(color) + productionQuantity.get());
+				log("          ....... Done!");
 			} catch (InterruptedException e) {
 				e.printStackTrace();
 			}

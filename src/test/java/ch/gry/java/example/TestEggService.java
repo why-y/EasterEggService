@@ -9,12 +9,9 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 import org.junit.After;
-import org.junit.AfterClass;
 import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
-import ch.gry.java.example.EggService;
 import ch.gry.java.example.model.Egg;
 import rx.schedulers.Schedulers;
 
@@ -24,28 +21,13 @@ import rx.schedulers.Schedulers;
  */
 public class TestEggService {
 	
-	private EggService service;
-
-	/**
-	 * @throws java.lang.Exception
-	 */
-	@BeforeClass
-	public static void setUpBeforeClass() throws Exception {
-	}
-
-	/**
-	 * @throws java.lang.Exception
-	 */
-	@AfterClass
-	public static void tearDownAfterClass() throws Exception {
-	}
+	private EggService service = EggService.getInstance();
 
 	/**
 	 * @throws java.lang.Exception
 	 */
 	@Before
 	public void setUp() throws Exception {
-		service = new EggService(4, 100);
 		service.startEggProductionTask();
 	}
 
@@ -67,7 +49,7 @@ public class TestEggService {
 		long start = System.currentTimeMillis();
 		
 		List<Egg> eggs =  new ArrayList<>();
-		service.pickEggs(16)
+		service.pickEggs_rx(16)
 			.subscribeOn(Schedulers.newThread())
 			.subscribe(
 				egg -> {eggs.add(egg);System.out.println("Received " + egg + " noOfEggs:" + eggs.size());},
@@ -83,37 +65,5 @@ public class TestEggService {
 		Thread.sleep(550);
 		
 	}
-	
-	
-	@Test
-	public void testThreadEnd() throws InterruptedException {
-		System.out.println(String.format("Thread:%d START", Thread.currentThread().getId()));
-		
-		Thread testThread = new Thread(() -> {
-			synchronized (this) {
-				System.out.println(String.format("  Thread:%d START", Thread.currentThread().getId()));
-				try {
-					Thread.sleep(1000);
-				} catch (Exception e) {
-					e.printStackTrace();
-				}
-				System.out.println(String.format("  Thread:%d STOP", Thread.currentThread().getId()));
-				notify();
-			}
-		});
-		
-		testThread.start();
-		
-		synchronized (testThread) {
-			testThread.wait();
-			System.out.println(String.format("Thread:%d STOP", Thread.currentThread().getId()));		
-		}
-	}
 
-	@Test
-	public void bla() throws InterruptedException {
-		System.out.println("====== START BLA =========");
-		Thread.sleep(4000);
-		System.out.println("====== STOP BLA =========");
-	}
 }

@@ -1,6 +1,8 @@
 package ch.gry.java.example;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
@@ -24,23 +26,46 @@ import rx.Observable;
  */
 public class EggService extends Service {
 
-	private AtomicInteger shelfCapacity;
-	private AtomicInteger layingInterval;
-	private BlockingQueue<Egg> eggShelf;
+	private static final EggService instance = new EggService();
 	
-	private ExecutorService eggsTreadPool = Executors.newFixedThreadPool(5);
+	private static final AtomicInteger shelfCapacity = new AtomicInteger(10);
+	private static final AtomicInteger layingInterval = new AtomicInteger(300); // milliseconds to lay an egg
+	private static final BlockingQueue<Egg> eggShelf = new ArrayBlockingQueue<>(shelfCapacity.get());
+	
+	private ExecutorService eggProductionExecutor = null;
 
-	/**
-	 * EggService constructor
-	 * @param shelfSize The capacity of the egg shelf
-	 * @param layingInterval Defines in what interval eggs are being laid, once the egg laying task has been started.
-	 */
-	public EggService(int shelfSize, int layingInterval) {
-		this.layingInterval = new AtomicInteger(layingInterval);
-		this.shelfCapacity = new AtomicInteger(shelfSize);
-		this.eggShelf = new ArrayBlockingQueue<>(shelfCapacity.get());
+	// explicitly declared private
+	private EggService() {
 	}
-
+	
+	/**
+	 * Return the instance of this Singleton
+	 * @return The unique instance of this Service
+	 */
+	public static final EggService getInstance() {
+		return instance;
+	}
+		
+	/**
+	 * TODO:
+	 * @param noOfRequestedEggs
+	 * @return
+	 */
+	public List<Egg> pickEggs(int noOfRequestedEggs) {
+		List<Egg> result = new ArrayList<>();
+		while(result.size() < noOfRequestedEggs) {
+			try {
+				Egg eggFromShelf = eggShelf.take();
+				log(String.format("   << PICK %s from shelf   new shelf count(%d/%d)", eggFromShelf, eggShelf.size(), shelfCapacity.get()));
+				result.add(eggFromShelf);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+				break;
+			}
+		}
+		return result;
+	}
+	
 	/**
 	 * Picks a requested number of eggs from the egg shelf.
 	 * If the requested number exceeds the number of available eggs from the shelf, 
@@ -48,11 +73,11 @@ public class EggService extends Service {
 	 * @param noOfRequestedEggs
 	 * @return
 	 */
-	public Observable<Egg> pickEggs(final int noOfRequestedEggs) {
+	public Observable<Egg> pickEggs_rx(int noOfRequestedEggs) {
 		return Observable.range(0, noOfRequestedEggs).map(i -> {
 			try {
 				Egg eggFromShelf = eggShelf.take();
-				log(String.format("   >> PICK %s from shelf   new shelf count(%d/%d)", eggFromShelf, eggShelf.size(), shelfCapacity.get()));
+				log(String.format("   << PICK %s from shelf   new shelf count(%d/%d)", eggFromShelf, eggShelf.size(), shelfCapacity.get()));
 				return eggFromShelf;
 			} catch (InterruptedException e) {
 				e.printStackTrace();
@@ -62,34 +87,40 @@ public class EggService extends Service {
 	}
 	
 	
-	
 	//////////////////// private stuff /////////////////////////////
 
 	void startEggProductionTask() {
 		log("Start the Egg Production Task");
-		eggsTreadPool.execute(() -> {
-			while (!eggsTreadPool.isShutdown()) {
-				if(eggShelf.size() < shelfCapacity.get()) {
-					try {
-						Egg newEgg = eggsTreadPool.submit(layAnEggTask).get();
+		eggProductionExecutor = Executors.newFixedThreadPool(2);
+		eggProductionExecutor.execute(() -> {
+			while (!eggProductionExecutor.isShutdown()) {
+				try {
+					// lay an egg and wait for it (blocking)
+					Egg newEgg = eggProductionExecutor.submit(layAnEggTask).get();
+					
+					if(eggShelf.size() < shelfCapacity.get()) {
 						log(String.format("   >> PUT %s to shelf   new shelf count(%d/%d)", newEgg, eggShelf.size()+1, shelfCapacity.get()));
 						eggShelf.add(newEgg);
-					} catch (InterruptedException | ExecutionException e) {
-						e.printStackTrace();
 					}
+					else {
+						log("The egg shelf is full! Discard the new egg.", Level.WARNING);
+					}
+					
+				} catch (InterruptedException | ExecutionException e) {
+					e.printStackTrace();
 				}
 			}					
 		});
 	}
 	
 	void stopEggProductionTask() {
-		if(eggsTreadPool.isShutdown()) {
+		if(eggProductionExecutor.isShutdown()) {
 			log("  ... the executor has already been shutdown!", Level.WARNING);
 		}
 		else {
-			eggsTreadPool.shutdown();
+			eggProductionExecutor.shutdown();
 			try {
-				eggsTreadPool.awaitTermination(10, TimeUnit.SECONDS);
+				eggProductionExecutor.awaitTermination(10, TimeUnit.SECONDS);
 			} catch (InterruptedException e) {
 				e.printStackTrace();
 			}			
@@ -98,7 +129,7 @@ public class EggService extends Service {
 	}
 	
 	private Callable<Egg> layAnEggTask = () -> { 
-		Thread.sleep(this.layingInterval.get());		
+		Thread.sleep(layingInterval.get());		
 		// variance of 30.0 grams
 		double variance = new Random().nextInt(300)/10.0; 
 		// i.e. 40-70 grams

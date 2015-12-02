@@ -7,11 +7,13 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import ch.gry.java.example.model.EasterEgg;
@@ -22,17 +24,8 @@ import rx.schedulers.Schedulers;
 
 public class TestEasterEggService {
 
-	private EasterEggService service;
-	
-	@Before
-	public void setUp() throws Exception {
-		service = new EasterEggService();
-	}
-
-	@After
-	public void tearDown() throws Exception {
-	}
-	
+	private EasterEggService service = new EasterEggService();
+		
 	@Test
 	public void testCalculatePaintQuantity() {
 		LocalDate now  = LocalDate.now();
@@ -57,10 +50,8 @@ public class TestEasterEggService {
 
 	@Test
 	public void testEasterEggs() throws InterruptedException {
-		long t0 = System.currentTimeMillis();
-		CountDownLatch cdl = new CountDownLatch(1);
-		System.out.println(String.format("[%6.3fs] ======= START TEST =========", (System.currentTimeMillis()-t0)/1000.0));
-//		Thread.sleep(1000);
+		System.out.println(String.format("======= START TEST ========="));
+		Thread.sleep(1000);
 		Map<Color, Integer> colorSetting = new HashMap<>();
 		
 		///////////// order //////////////
@@ -70,16 +61,38 @@ public class TestEasterEggService {
 		colorSetting.put(Color.GREEN, 4);
 		//////////////////////////////////
 		
-		service.getEasterEggs(colorSetting)
+		List<EasterEgg> easterEggs = service.getEasterEggs(colorSetting);
+		for (EasterEgg easterEgg : easterEggs) {
+			System.out.println(easterEgg);
+		}
+		
+		System.out.println(String.format("======= STOP TEST ========="));		
+	}
+	
+	@Test
+	public void testEasterEggs_rx() throws InterruptedException {
+		CountDownLatch cdl = new CountDownLatch(1);
+		System.out.println(String.format("======= START TEST rx ======"));
+		Thread.sleep(1000);
+		Map<Color, Integer> colorSetting = new HashMap<>();
+		
+		///////////// order //////////////
+		colorSetting.put(Color.RED, 2);
+		colorSetting.put(Color.BLUE, 1);
+		colorSetting.put(Color.YELLOW, 3);
+		colorSetting.put(Color.GREEN, 4);
+		//////////////////////////////////
+		
+		service.getEasterEggs_rx(colorSetting)
 			.subscribeOn(Schedulers.newThread())
 			.subscribe(
 					egg -> {
-						System.out.println(String.format("[%6.3fs] -> Received: %s", (System.currentTimeMillis()-t0)/1000.0, egg));
+						System.out.println(String.format(" -> Received: %s", egg));
 					},
 					e -> e.printStackTrace(),
 					() -> cdl.countDown());
 		cdl.await();
-		System.out.println(String.format("[%6.3fs] ======= START END =========", (System.currentTimeMillis()-t0)/1000.0));
+		System.out.println(String.format("======= STOP TEST rx ======"));
 	}
-
+	
 }

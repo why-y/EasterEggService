@@ -1,5 +1,7 @@
 package ch.gry.java.example;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
 
@@ -17,8 +19,8 @@ public class EasterEggService extends Service  {
 	
 	private static final int COLORING_DURATION = 200; // [ms]
 	
-	private EggService eggService =  new EggService(4, 300);
-	private PaintService paintService = new PaintService(500L);
+	private EggService eggService =  EggService.getInstance();
+	private PaintService paintService = PaintService.getInstance();
 	
 	/**
 	 * EasterEgg constructor
@@ -27,13 +29,27 @@ public class EasterEggService extends Service  {
 		eggService.startEggProductionTask();
 	}
 	
+	// TODO:
+	public List<EasterEgg> getEasterEggs(final Map<Color,Integer> colorSetting) {
+		List<EasterEgg> result = new ArrayList<>();
+		for (Color color : colorSetting.keySet()) {
+			List<Egg> eggs = eggService.pickEggs(colorSetting.get(color));
+			for (Egg egg : eggs) {
+				long paintQuantity = calculatePaintQuantity(egg);
+				Paint paint = paintService.getPaint(color, paintQuantity);
+				result.add(colorizeEgg(egg, paint));
+			}
+		}
+		return result;
+	}
+	
 	/**
 	 * Returns easter eggs according to a desired color setting, 
 	 * e.g (two blue eggs, three red eggs and six green eggs).
 	 * @param colorSetting
 	 * @return
 	 */
-	public Observable<EasterEgg> getEasterEggs(final Map<Color,Integer> colorSetting) {
+	public Observable<EasterEgg> getEasterEggs_rx(final Map<Color,Integer> colorSetting) {
 		
 		// flatten the colorSetting-map from e.g. {(BLUE:3),(RED:2),(GREEN:4)}
 		// to {BLUE,BLUE,BLUE,RED,RED,GREEN,GREEN,GREEN,GREEN}
@@ -42,12 +58,12 @@ public class EasterEggService extends Service  {
 				.flatMap(c-> Observable.just(c).repeat(colorSetting.get(c)));
 
 		Integer noOfEggs = colorSetting.values().stream().reduce(0, (a, b) -> a+b);
-		Observable<Egg> eggs = eggService.pickEggs(noOfEggs);
+		Observable<Egg> eggs = eggService.pickEggs_rx(noOfEggs);
 		
 		Observable<Observable<EasterEgg>> easterEggsObservables = eggs.zipWith(flatColorSetting, (egg, color) -> {
 			long paintQuantity = calculatePaintQuantity(egg);
 			return paintService
-					.getPaint(color, paintQuantity)
+					.getPaint_rx(color, paintQuantity)
 					.map(p -> colorizeEgg(egg, p));
 		});
 		
@@ -84,7 +100,7 @@ public class EasterEggService extends Service  {
 	long calculatePaintQuantity(final Egg egg) {
 		int factor = 1;
 		long ret = (long) Math.ceil(egg.getWeight()*factor);
-		log(String.format("============= calculated paint for %s is %d", egg, ret));
+//		log(String.format("============= calculated paint for %s is %d", egg, ret));
 		return ret;
 	}
 }
