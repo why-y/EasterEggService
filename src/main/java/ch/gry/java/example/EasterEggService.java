@@ -39,11 +39,11 @@ public class EasterEggService extends Service  {
 	}
 	
 	/**
-	 * Produces an returns colorized easter eggs according to the given
+	 * Produces an returns colored easter eggs according to the given
 	 * colorSetting. This will be done in a classical, imperative, synchronous
-	 * way.
-	 * @param colorSetting
-	 * @return
+	 * way. 
+	 * @param colorSetting Defines how many eggs of what color to be produced
+	 * @return The colored easter eggs according to the given colorSetting
 	 */
 	public List<EasterEgg> getEasterEggs(final Map<Color,Integer> colorSetting) {
 		
@@ -66,13 +66,15 @@ public class EasterEggService extends Service  {
 	
 	
 	/**
-	 * Produces an returns colorized easter eggs according to the given
+	 * Produces an returns colored easter eggs according to the given
 	 * colorSetting. This will be done in a classical, imperative, synchronous
-	 * way.
-	 * @param colorSetting
-	 * @return
+	 * way. Yet, depending on the colorSetting (i.e. eggs of many different colors)
+	 * it's faster to only get the eggs for a single color and then colorize them
+	 * before proceeding with the eggs of another color.
+	 * @param colorSetting Defines how many eggs of what color to be produced
+	 * @return The colored easter eggs according to the given colorSetting
 	 */
-	public List<EasterEgg> _getEasterEggs(final Map<Color,Integer> colorSetting) {
+	public List<EasterEgg> getEasterEggsFast(final Map<Color,Integer> colorSetting) {
 		
 		List<EasterEgg> result = new ArrayList<>();
 		for (Color color : colorSetting.keySet()) {
@@ -90,8 +92,8 @@ public class EasterEggService extends Service  {
 	 * Returns easter eggs according to a desired color setting, 
 	 * e.g (two blue eggs, three red eggs and six green eggs).
 	 * This will be done in a asynchronous, reactive way.
-	 * @param colorSetting
-	 * @return
+	 * @param colorSetting Defines how many eggs of what color to be produced
+	 * @return The colored easter eggs according to the given colorSetting
 	 */
 	public Observable<EasterEgg> getEasterEggs_rx(final Map<Color,Integer> colorSetting) {
 		
@@ -130,7 +132,7 @@ public class EasterEggService extends Service  {
 			return null;
 		}
 		try {
-			log(String.format("....... waiting(ThreadId:%d) for the %s to be colorized with %s ........", Thread.currentThread().getId(), egg, paint));
+			log(String.format("....... waiting(ThreadId:%d) for the %s to be colored with %s ........", Thread.currentThread().getId(), egg, paint));
 			Thread.sleep(COLORING_DURATION);
 			return new EasterEgg(egg, paint.getColor());
 		} catch (InterruptedException e) {

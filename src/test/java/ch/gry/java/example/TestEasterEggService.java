@@ -12,6 +12,7 @@ import java.util.concurrent.CountDownLatch;
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import ch.gry.java.example.model.EasterEgg;
@@ -29,10 +30,18 @@ public class TestEasterEggService {
 	private Instant start;
 	
 	static {
-		colorSetting.put(Color.RED, 6);
-		colorSetting.put(Color.BLUE, 4);
+		/// order 24 eggs of different colors 
+		colorSetting.put(Color.RED, 1);
+		colorSetting.put(Color.BLUE, 3);
 		colorSetting.put(Color.YELLOW, 6);
-		colorSetting.put(Color.GREEN, 7);		
+		colorSetting.put(Color.GREEN, 5);
+		colorSetting.put(Color.PINK, 4);
+		colorSetting.put(Color.BROWN, 3);
+		colorSetting.put(Color.ORANGE, 2);
+		
+
+		/// order 24 eggs of the same color 
+//		colorSetting.put(Color.GREEN, 24);		
 	}
 	
 	@Before
@@ -50,6 +59,7 @@ public class TestEasterEggService {
 	}
 	
 	@Test
+	@Ignore
 	public void testCalculatePaintQuantity() {
 		LocalDate now  = LocalDate.now();
 		assertEquals(1, service.calculatePaintQuantity(new Egg(now, 0.1)));
@@ -60,6 +70,7 @@ public class TestEasterEggService {
 	}
 	
 	@Test
+	@Ignore
 	public void testColorizeEgg() {
 		LocalDate now = LocalDate.now();
 		EasterEgg easterEgg = service.colorizeEgg(new Egg(LocalDate.now(), 53.3), new Paint(Color.BLUE, 60));
@@ -70,16 +81,34 @@ public class TestEasterEggService {
 
 	@Test
 	public void testEasterEggs() throws InterruptedException {
+		
 		System.out.println(String.format("    Test EasterEggService.getEasterEggs() with colorSetting: %s", colorSetting));
 		List<EasterEgg> easterEggs = service.getEasterEggs(colorSetting);
+		
+		// print result:
+		System.out.println(String.format(" -> Received %d eggs after %ss", easterEggs.size(), formatDuration(Duration.between(start, Instant.now()))));
 		for (EasterEgg egg : easterEggs) {
-			System.out.println(String.format(" -> Received after %ss: %s", formatDuration(Duration.between(start, Instant.now())), egg));
+			System.out.println(String.format("     %s", egg));
 		}
 		
 	}
 	
 	@Test
+	public void testEasterEggsFast() throws InterruptedException {
+		
+		System.out.println(String.format("    Test EasterEggService.getEasterEggsFaster() with colorSetting: %s", colorSetting));
+		List<EasterEgg> easterEggs = service.getEasterEggsFast(colorSetting);
+
+		// print result:
+		System.out.println(String.format(" -> Received %d eggs after %ss", easterEggs.size(), formatDuration(Duration.between(start, Instant.now()))));
+		for (EasterEgg egg : easterEggs) {
+			System.out.println(String.format("     %s", egg));
+		}
+	}
+	
+	@Test
 	public void testEasterEggs_rx() throws InterruptedException {
+		
 		System.out.println(String.format("    Test EasterEggService.getEasterEggs_rx() with colorSetting: %s", colorSetting));
 		CountDownLatch cdl = new CountDownLatch(1);
 		service.getEasterEggs_rx(colorSetting)

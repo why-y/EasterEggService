@@ -5,5 +5,5 @@ package ch.gry.java.example.model.type;
  * @author yvesgross
  */
 public enum Color {
-	RED, BLUE, YELLOW, GREEN
+	RED, BLUE, YELLOW, GREEN, ORANGE, PINK, BROWN
 }
