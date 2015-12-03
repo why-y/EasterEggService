@@ -1,8 +1,10 @@
 package ch.gry.java.example;
 
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
 import java.util.logging.Level;
 
 import ch.gry.java.example.model.EasterEgg;
@@ -10,6 +12,7 @@ import ch.gry.java.example.model.Egg;
 import ch.gry.java.example.model.Paint;
 import ch.gry.java.example.model.type.Color;
 import rx.Observable;
+import rx.schedulers.Schedulers;
 
 /**
  * Service to obtain easter eggs according a the desired color setting
@@ -17,7 +20,7 @@ import rx.Observable;
  */
 public class EasterEggService extends Service  {
 	
-	private static final int COLORING_DURATION = 200; // [ms]
+	private static final int COLORING_DURATION = 50; // [ms]
 	
 	private EggService eggService =  EggService.getInstance();
 	private PaintService paintService = PaintService.getInstance();
@@ -26,11 +29,51 @@ public class EasterEggService extends Service  {
 	 * EasterEgg constructor
 	 */
 	public EasterEggService() {
+		// init the egg shelf with a few eggs
+//		eggService.stockEggs(Arrays.asList(
+//				new Egg(LocalDate.now(), 100.1),
+//				new Egg(LocalDate.now(), 100.2),
+//				new Egg(LocalDate.now(), 100.3)
+//				));
 		eggService.startEggProductionTask();
 	}
 	
-	// TODO:
+	/**
+	 * Produces an returns colorized easter eggs according to the given
+	 * colorSetting. This will be done in a classical, imperative, synchronous
+	 * way.
+	 * @param colorSetting
+	 * @return
+	 */
 	public List<EasterEgg> getEasterEggs(final Map<Color,Integer> colorSetting) {
+		
+		// get eggs: 
+		Integer noOfEggs = colorSetting.values().stream().reduce(0, (a, b) -> a+b);
+		Queue<Egg> eggs = new LinkedList<>(eggService.pickEggs(noOfEggs));
+		
+		// colorize eggs:
+		List<EasterEgg> result = new ArrayList<>();
+		for (Color color : colorSetting.keySet()) {
+			for (int i=0; i < colorSetting.get(color); i++) {
+				Egg egg = eggs. poll();
+				long paintQuantity = calculatePaintQuantity(egg);
+				Paint paint = paintService.getPaint(color, paintQuantity);
+				result.add(colorizeEgg(egg, paint));
+			}
+		}
+		return result;
+	}
+	
+	
+	/**
+	 * Produces an returns colorized easter eggs according to the given
+	 * colorSetting. This will be done in a classical, imperative, synchronous
+	 * way.
+	 * @param colorSetting
+	 * @return
+	 */
+	public List<EasterEgg> _getEasterEggs(final Map<Color,Integer> colorSetting) {
+		
 		List<EasterEgg> result = new ArrayList<>();
 		for (Color color : colorSetting.keySet()) {
 			List<Egg> eggs = eggService.pickEggs(colorSetting.get(color));
@@ -46,6 +89,7 @@ public class EasterEggService extends Service  {
 	/**
 	 * Returns easter eggs according to a desired color setting, 
 	 * e.g (two blue eggs, three red eggs and six green eggs).
+	 * This will be done in a asynchronous, reactive way.
 	 * @param colorSetting
 	 * @return
 	 */
@@ -58,7 +102,7 @@ public class EasterEggService extends Service  {
 				.flatMap(c-> Observable.just(c).repeat(colorSetting.get(c)));
 
 		Integer noOfEggs = colorSetting.values().stream().reduce(0, (a, b) -> a+b);
-		Observable<Egg> eggs = eggService.pickEggs_rx(noOfEggs);
+		Observable<Egg> eggs = eggService.pickEggs_rx(noOfEggs).observeOn(Schedulers.io());
 		
 		Observable<Observable<EasterEgg>> easterEggsObservables = eggs.zipWith(flatColorSetting, (egg, color) -> {
 			long paintQuantity = calculatePaintQuantity(egg);
@@ -73,17 +117,20 @@ public class EasterEggService extends Service  {
 		return easterEggs;
 	}
 	
+	public void terminate() {
+		eggService.stopEggProductionTask();
+	}
 	
 	//////////////////// private stuff /////////////////////////////
 	
 	EasterEgg colorizeEgg(final Egg egg, final Paint paint) {
-		log(String.format("colorizeEgg: %s with %s", egg, paint));
 		long requiredQuantity = calculatePaintQuantity(egg);
 		if(paint.getQuantity() < requiredQuantity) {
 			log(String.format("Not enough paint for the given %s! Required:%dml, Received:%dml. -> Return null.", egg, requiredQuantity, paint.getQuantity()),  Level.WARNING);
 			return null;
 		}
 		try {
+			log(String.format("....... waiting(ThreadId:%d) for the %s to be colorized with %s ........", Thread.currentThread().getId(), egg, paint));
 			Thread.sleep(COLORING_DURATION);
 			return new EasterEgg(egg, paint.getColor());
 		} catch (InterruptedException e) {

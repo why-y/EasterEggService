@@ -100,14 +100,13 @@ public class PaintService extends Service {
 			CountDownLatch cdl = new CountDownLatch(1);
 			
 			// production time depends on the quantity
-			final int productivity = 2;
-			long productionTime = productionQuantity.get()/productivity;
+			final int productivity = 1000;
+			long productionTime = productionQuantity.get()*1000/productivity;
 			
 			try {
-				log(String.format("    producing %dml of %s paint ... ", productionQuantity.get(), color));
+				log(String.format("....... waiting(ThreadId:%d) for producing %dml of %s paint ........", Thread.currentThread().getId(), productionQuantity.get(), color));
 				cdl.await(productionTime, TimeUnit.MILLISECONDS);
 				paintBarrels.put(color, remainingQuantity(color) + productionQuantity.get());
-				log("          ....... Done!");
 			} catch (InterruptedException e) {
 				e.printStackTrace();
 			}

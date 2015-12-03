@@ -16,6 +16,7 @@ import java.util.logging.Level;
 
 import ch.gry.java.example.model.Egg;
 import rx.Observable;
+import rx.schedulers.Schedulers;
 
 /**
  * Service to obtain eggs from an egg shelf.
@@ -29,7 +30,7 @@ public class EggService extends Service {
 	private static final EggService instance = new EggService();
 	
 	private static final AtomicInteger shelfCapacity = new AtomicInteger(10);
-	private static final AtomicInteger layingInterval = new AtomicInteger(300); // milliseconds to lay an egg
+	private static final AtomicInteger layingInterval = new AtomicInteger(50); // milliseconds to lay an egg
 	private static final BlockingQueue<Egg> eggShelf = new ArrayBlockingQueue<>(shelfCapacity.get());
 	
 	private ExecutorService eggProductionExecutor = null;
@@ -45,6 +46,23 @@ public class EggService extends Service {
 	public static final EggService getInstance() {
 		return instance;
 	}
+	
+	/**
+	 * Tries to put the given eggs to the egg shelf.
+	 * Since the shelf capacity is limited, it cannot
+	 * be guaranteed to stock all of the given eggs. 
+	 * @param eggsToStock The eggs to put on the egg shelf
+	 * @return The eggs that actually have been stocked
+	 */
+	public List<Egg> stockEggs(List<Egg> eggsToStock) {
+		List<Egg> stockedEggs = new ArrayList<>();
+		for (Egg eggToStock : eggsToStock) {
+			if(eggShelf.offer(eggToStock)) {
+				stockedEggs.add(eggToStock);
+			}
+		}
+		return stockedEggs;
+	}
 		
 	/**
 	 * TODO:
@@ -56,7 +74,7 @@ public class EggService extends Service {
 		while(result.size() < noOfRequestedEggs) {
 			try {
 				Egg eggFromShelf = eggShelf.take();
-				log(String.format("   << PICK %s from shelf   new shelf count(%d/%d)", eggFromShelf, eggShelf.size(), shelfCapacity.get()));
+				log(String.format("PICK %s from shelf   new shelf count(%d/%d)", eggFromShelf, eggShelf.size(), shelfCapacity.get()));
 				result.add(eggFromShelf);
 			} catch (InterruptedException e) {
 				e.printStackTrace();
@@ -74,10 +92,13 @@ public class EggService extends Service {
 	 * @return
 	 */
 	public Observable<Egg> pickEggs_rx(int noOfRequestedEggs) {
-		return Observable.range(0, noOfRequestedEggs).map(i -> {
+		return Observable.range(0, noOfRequestedEggs, Schedulers.newThread()).map(i -> {
 			try {
+				if(eggShelf.isEmpty()) {
+					log(String.format("....... waiting(ThreadId:%d) for a new egg ....... ", Thread.currentThread().getId()));
+				}
 				Egg eggFromShelf = eggShelf.take();
-				log(String.format("   << PICK %s from shelf   new shelf count(%d/%d)", eggFromShelf, eggShelf.size(), shelfCapacity.get()));
+				log(String.format("PICK %s from shelf   new shelf count(%d/%d)", eggFromShelf, eggShelf.size(), shelfCapacity.get()));
 				return eggFromShelf;
 			} catch (InterruptedException e) {
 				e.printStackTrace();
@@ -98,13 +119,8 @@ public class EggService extends Service {
 					// lay an egg and wait for it (blocking)
 					Egg newEgg = eggProductionExecutor.submit(layAnEggTask).get();
 					
-					if(eggShelf.size() < shelfCapacity.get()) {
-						log(String.format("   >> PUT %s to shelf   new shelf count(%d/%d)", newEgg, eggShelf.size()+1, shelfCapacity.get()));
-						eggShelf.add(newEgg);
-					}
-					else {
-						log("The egg shelf is full! Discard the new egg.", Level.WARNING);
-					}
+					// try to put the new egg onto the shelf (offer)
+					eggShelf.offer(newEgg);
 					
 				} catch (InterruptedException | ExecutionException e) {
 					e.printStackTrace();

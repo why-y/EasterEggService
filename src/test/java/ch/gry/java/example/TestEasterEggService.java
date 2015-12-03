@@ -1,7 +1,6 @@
 package ch.gry.java.example;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -13,7 +12,6 @@ import java.util.concurrent.CountDownLatch;
 
 import org.junit.After;
 import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import ch.gry.java.example.model.EasterEgg;
@@ -24,8 +22,33 @@ import rx.schedulers.Schedulers;
 
 public class TestEasterEggService {
 
-	private EasterEggService service = new EasterEggService();
-		
+	private EasterEggService service;
+	
+	private static final Map<Color, Integer> colorSetting = new HashMap<>();
+	
+	private Instant start;
+	
+	static {
+		colorSetting.put(Color.RED, 6);
+		colorSetting.put(Color.BLUE, 4);
+		colorSetting.put(Color.YELLOW, 6);
+		colorSetting.put(Color.GREEN, 7);		
+	}
+	
+	@Before
+	public void testStarts() {
+		System.out.println(String.format("\n======= START TEST ========="));
+		start = Instant.now();
+		service = new EasterEggService();
+	}
+	
+	@After
+	public void testStops() {
+//		service.terminate();
+		System.out.println(String.format("======= STOP TEST (Duration: %s) ======\n", 
+				formatDuration(Duration.between(start, Instant.now()))));
+	}
+	
 	@Test
 	public void testCalculatePaintQuantity() {
 		LocalDate now  = LocalDate.now();
@@ -39,60 +62,38 @@ public class TestEasterEggService {
 	@Test
 	public void testColorizeEgg() {
 		LocalDate now = LocalDate.now();
-		Instant start = Instant.now();
 		EasterEgg easterEgg = service.colorizeEgg(new Egg(LocalDate.now(), 53.3), new Paint(Color.BLUE, 60));
-		assertEquals(now, easterEgg.getLayingDate());
-		assertEquals(53.3d, easterEgg.getWeight(), 0.0001d);
+		assertEquals(now, easterEgg.getEgg().getLayingDate());
+		assertEquals(53.3d, easterEgg.getEgg().getWeight(), 0.0001d);
 		assertEquals(Color.BLUE, easterEgg.getColor());
-		Duration duration = Duration.between(start, Instant.now());
-		assertTrue(duration.getNano()>=200000000 & duration.getNano()<220000000);		
 	}
 
 	@Test
 	public void testEasterEggs() throws InterruptedException {
-		System.out.println(String.format("======= START TEST ========="));
-		Thread.sleep(1000);
-		Map<Color, Integer> colorSetting = new HashMap<>();
-		
-		///////////// order //////////////
-		colorSetting.put(Color.RED, 2);
-		colorSetting.put(Color.BLUE, 1);
-		colorSetting.put(Color.YELLOW, 3);
-		colorSetting.put(Color.GREEN, 4);
-		//////////////////////////////////
-		
+		System.out.println(String.format("    Test EasterEggService.getEasterEggs() with colorSetting: %s", colorSetting));
 		List<EasterEgg> easterEggs = service.getEasterEggs(colorSetting);
-		for (EasterEgg easterEgg : easterEggs) {
-			System.out.println(easterEgg);
+		for (EasterEgg egg : easterEggs) {
+			System.out.println(String.format(" -> Received after %ss: %s", formatDuration(Duration.between(start, Instant.now())), egg));
 		}
 		
-		System.out.println(String.format("======= STOP TEST ========="));		
 	}
 	
 	@Test
 	public void testEasterEggs_rx() throws InterruptedException {
+		System.out.println(String.format("    Test EasterEggService.getEasterEggs_rx() with colorSetting: %s", colorSetting));
 		CountDownLatch cdl = new CountDownLatch(1);
-		System.out.println(String.format("======= START TEST rx ======"));
-		Thread.sleep(1000);
-		Map<Color, Integer> colorSetting = new HashMap<>();
-		
-		///////////// order //////////////
-		colorSetting.put(Color.RED, 2);
-		colorSetting.put(Color.BLUE, 1);
-		colorSetting.put(Color.YELLOW, 3);
-		colorSetting.put(Color.GREEN, 4);
-		//////////////////////////////////
-		
 		service.getEasterEggs_rx(colorSetting)
 			.subscribeOn(Schedulers.newThread())
 			.subscribe(
 					egg -> {
-						System.out.println(String.format(" -> Received: %s", egg));
+						System.out.println(String.format(" -> Received after %ss: %s", formatDuration(Duration.between(start, Instant.now())), egg));
 					},
 					e -> e.printStackTrace(),
 					() -> cdl.countDown());
 		cdl.await();
-		System.out.println(String.format("======= STOP TEST rx ======"));
 	}
 	
+	private String formatDuration(final Duration d) {
+		return String.format("%d.%d", d.getSeconds(), d.getNano()/1000000);
+	}
 }

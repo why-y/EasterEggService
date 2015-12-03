@@ -5,15 +5,16 @@ import ch.gry.java.example.model.type.Color;
 /**
  * Data bean representing an easter egg specified by
  * the {@linkplain ch.gry.java.example.model.type.Color Color}
- * and the attributes of an {@linkplain ch.gry.java.example.model.Egg Egg}
+ * and an {@linkplain ch.gry.java.example.model.Egg Egg}
  * @author yvesgross
  */
-public class EasterEgg extends Egg {
+public class EasterEgg {
 
+	private Egg egg;
 	private Color color;
 	
 	public EasterEgg(final Egg egg, final Color color) {
-		super(egg.getLayingDate(), egg.getWeight());
+		this.egg = egg;
 		this.color = color;
 	}
 
@@ -21,13 +22,13 @@ public class EasterEgg extends Egg {
 		return color;
 	}
 
-	public void setColor(Color color) {
-		this.color = color;
+	public Egg getEgg() {
+		return egg;
 	}
-
+	
 	@Override
 	public String toString() {
-		return "EasterEgg [color=" + color + ", layingDate=" + layingDate + ", weight=" + weight + "]";
+		return "EasterEgg [id=" + egg.getId() + ", color=" + color + "]";
 	}
 
 }
