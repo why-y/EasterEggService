@@ -32,11 +32,11 @@ public class TestEasterEggService {
 	static {
 		/// order 24 eggs of different colors 
 		colorSetting.put(Color.RED, 1);
-		colorSetting.put(Color.BLUE, 3);
+//		colorSetting.put(Color.BLUE, 3);
 		colorSetting.put(Color.YELLOW, 6);
-		colorSetting.put(Color.GREEN, 5);
-		colorSetting.put(Color.PINK, 4);
-		colorSetting.put(Color.BROWN, 3);
+//		colorSetting.put(Color.GREEN, 5);
+//		colorSetting.put(Color.PINK, 4);
+//		colorSetting.put(Color.BROWN, 3);
 		colorSetting.put(Color.ORANGE, 2);
 		
 

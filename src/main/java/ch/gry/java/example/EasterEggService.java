@@ -104,19 +104,18 @@ public class EasterEggService extends Service  {
 				.flatMap(c-> Observable.just(c).repeat(colorSetting.get(c)));
 
 		Integer noOfEggs = colorSetting.values().stream().reduce(0, (a, b) -> a+b);
-		Observable<Egg> eggs = eggService.pickEggs_rx(noOfEggs).observeOn(Schedulers.io());
+		Observable<Egg> eggs = eggService.pickEggs_rx(noOfEggs).observeOn(Schedulers.newThread());
 		
 		Observable<Observable<EasterEgg>> easterEggsObservables = eggs.zipWith(flatColorSetting, (egg, color) -> {
 			long paintQuantity = calculatePaintQuantity(egg);
 			return paintService
 					.getPaint_rx(color, paintQuantity)
-					.map(p -> colorizeEgg(egg, p));
+					.flatMap(p -> colorizeEgg_rx(egg, p));
 		});
 		
-		// flatten Observable of Observabless
-		Observable<EasterEgg> easterEggs = Observable.switchOnNext(easterEggsObservables);
-				
-		return easterEggs;
+		// flatten Observable of Observables
+		return Observable.concat(easterEggsObservables);
+		
 	}
 	
 	public void terminate() {
@@ -137,8 +136,24 @@ public class EasterEggService extends Service  {
 			return new EasterEgg(egg, paint.getColor());
 		} catch (InterruptedException e) {
 			log(String.format("Coloring %s has been interrupted! return null.", egg), Level.SEVERE);
+			e.printStackTrace();
 			return null;
 		}
+	}
+	
+	Observable<EasterEgg> colorizeEgg_rx(final Egg egg, final Paint paint) {
+		return Observable.create(s -> {
+			try {
+				log(String.format("....... waiting(ThreadId:%d) for the %s to be colored with %s ........", Thread.currentThread().getId(), egg, paint));
+				Thread.sleep(COLORING_DURATION);
+				s.onNext(new EasterEgg(egg, paint.getColor()));
+				s.onCompleted();
+			} catch (InterruptedException e) {
+				log(String.format("Coloring %s has been interrupted! return null.", egg), Level.SEVERE);
+				e.printStackTrace();
+				s.onError(e);
+			}
+		});
 	}
 	
 	/**
@@ -149,7 +164,6 @@ public class EasterEggService extends Service  {
 	long calculatePaintQuantity(final Egg egg) {
 		int factor = 1;
 		long ret = (long) Math.ceil(egg.getWeight()*factor);
-//		log(String.format("============= calculated paint for %s is %d", egg, ret));
 		return ret;
 	}
 }

@@ -1,4 +1,4 @@
-package ch.gry.java.example.model;
+package ch.gry.java.example;
 
 import java.util.logging.Formatter;
 import java.util.logging.LogRecord;
@@ -14,11 +14,12 @@ public class ServiceLogFormatter extends Formatter {
 	@Override
 	public String format(LogRecord record) {
 		long diff = System.currentTimeMillis()-t0;
-        return String.format("%10s [%4.3f] [%2d] [%s] [%s]\n",
+		String[] chunks = record.getLoggerName().split("\\.|\\$");
+        return String.format("%10s [%4.3f] [%2d] [%18s] [%s]\n",
         		record.getLevel(),
         		(diff%10000)/1000.0,
         		record.getThreadID(),
-        		record.getLoggerName(),
+        		chunks[chunks.length-1],
         		record.getMessage());
 	}
 

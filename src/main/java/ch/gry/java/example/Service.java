@@ -4,8 +4,6 @@ import java.util.logging.ConsoleHandler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import ch.gry.java.example.model.ServiceLogFormatter;
-
 /**
  * Generic abstract service class
  * 
