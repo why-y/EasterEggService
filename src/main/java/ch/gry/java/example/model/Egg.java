@@ -15,11 +15,16 @@ public class Egg {
 	protected int id;
 	private static int idCounter = 0;
 	
-	public Egg(LocalDate layingDate, double weight) {
+	private Egg(LocalDate layingDate, double weight) {
 		super();
 		this.layingDate = layingDate;
 		this.weight = weight;
-		this.id = idCounter++;
+	}
+	
+	public static Egg createEgg(final LocalDate layingDate, final double weight) {
+		Egg newEgg = new Egg(layingDate, weight);
+		newEgg.id = idCounter++;
+		return newEgg;
 	}
 	
 	public int getId() {

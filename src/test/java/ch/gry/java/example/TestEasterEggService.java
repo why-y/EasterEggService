@@ -62,18 +62,18 @@ public class TestEasterEggService {
 	@Ignore
 	public void testCalculatePaintQuantity() {
 		LocalDate now  = LocalDate.now();
-		assertEquals(1, service.calculatePaintQuantity(new Egg(now, 0.1)));
-		assertEquals(1, service.calculatePaintQuantity(new Egg(now, 0.9)));
-		assertEquals(20, service.calculatePaintQuantity(new Egg(now, 20.0000)));
-		assertEquals(21, service.calculatePaintQuantity(new Egg(now, 20.0001)));
-		assertEquals(21, service.calculatePaintQuantity(new Egg(now, 20.9999)));
+		assertEquals(1, service.calculatePaintQuantity(Egg.createEgg(now, 0.1)));
+		assertEquals(1, service.calculatePaintQuantity(Egg.createEgg(now, 0.9)));
+		assertEquals(20, service.calculatePaintQuantity(Egg.createEgg(now, 20.0000)));
+		assertEquals(21, service.calculatePaintQuantity(Egg.createEgg(now, 20.0001)));
+		assertEquals(21, service.calculatePaintQuantity(Egg.createEgg(now, 20.9999)));
 	}
 	
 	@Test
 	@Ignore
 	public void testColorizeEgg() {
 		LocalDate now = LocalDate.now();
-		EasterEgg easterEgg = service.colorizeEgg(new Egg(LocalDate.now(), 53.3), new Paint(Color.BLUE, 60));
+		EasterEgg easterEgg = service.colorizeEgg(Egg.createEgg(LocalDate.now(), 53.3), new Paint(Color.BLUE, 60));
 		assertEquals(now, easterEgg.getEgg().getLayingDate());
 		assertEquals(53.3d, easterEgg.getEgg().getWeight(), 0.0001d);
 		assertEquals(Color.BLUE, easterEgg.getColor());

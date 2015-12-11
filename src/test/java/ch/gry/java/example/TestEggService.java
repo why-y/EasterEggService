@@ -13,6 +13,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import ch.gry.java.example.model.Egg;
+import rx.Observable;
 import rx.schedulers.Schedulers;
 
 /**
@@ -66,4 +67,29 @@ public class TestEggService {
 		
 	}
 
+	@Test
+	public void testMultipleEggCatchingObservers() throws InterruptedException {
+		CountDownLatch cdl = new CountDownLatch(2);
+		Observable<Egg> eggLayingObservable = service.eggLaying().take(5);
+
+		Thread.sleep(1000);
+		
+		eggLayingObservable
+			.subscribeOn(Schedulers.newThread())
+			.subscribe(
+				egg -> System.out.println(String.format("Observer1 received: %s", egg)),
+				exc -> exc.printStackTrace(),
+				() -> cdl.countDown()
+			);
+		Thread.sleep(250);
+		eggLayingObservable
+			.subscribeOn(Schedulers.newThread())
+			.subscribe(
+				egg -> System.out.println(String.format("       Observer2 received: %s", egg)),
+				exc -> exc.printStackTrace(),
+				() -> cdl.countDown()
+			);
+		
+		cdl.await(10, TimeUnit.SECONDS);
+	}
 }

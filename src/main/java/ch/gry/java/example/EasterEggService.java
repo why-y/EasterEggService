@@ -35,7 +35,8 @@ public class EasterEggService extends Service  {
 //				new Egg(LocalDate.now(), 100.2),
 //				new Egg(LocalDate.now(), 100.3)
 //				));
-		eggService.startEggProductionTask();
+//		eggService.startEggProductionTask();
+		eggService.startEggProductionTask_rx();
 	}
 	
 	/**
@@ -119,7 +120,8 @@ public class EasterEggService extends Service  {
 	}
 	
 	public void terminate() {
-		eggService.stopEggProductionTask();
+//		eggService.stopEggProductionTask();
+		eggService.stopEggProductionTask_rx();
 	}
 	
 	//////////////////// private stuff /////////////////////////////

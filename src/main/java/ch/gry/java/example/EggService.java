@@ -16,6 +16,8 @@ import java.util.logging.Level;
 
 import ch.gry.java.example.model.Egg;
 import rx.Observable;
+import rx.Subscription;
+import rx.observables.ConnectableObservable;
 import rx.schedulers.Schedulers;
 
 /**
@@ -30,10 +32,12 @@ public class EggService extends Service {
 	private static final EggService instance = new EggService();
 	
 	private static final AtomicInteger shelfCapacity = new AtomicInteger(10);
-	private static final AtomicInteger layingInterval = new AtomicInteger(50); // milliseconds to lay an egg
+	private static final AtomicInteger layingInterval = new AtomicInteger(100); // milliseconds to lay an egg
 	private static final BlockingQueue<Egg> eggShelf = new ArrayBlockingQueue<>(shelfCapacity.get());
 	
 	private ExecutorService eggProductionExecutor = null;
+	private ConnectableObservable<Egg> eggLayingHotObservable;
+	private Subscription eggLayingHotSubscription;
 
 	// explicitly declared private
 	private EggService() {
@@ -108,11 +112,16 @@ public class EggService extends Service {
 	}
 	
 	
+	public Observable<Egg> eggLaying() {
+		return this.eggLayingHotObservable;
+	}
+	
 	//////////////////// private stuff /////////////////////////////
 
 	void startEggProductionTask() {
 		log("Start the Egg Production Task");
-		eggProductionExecutor = Executors.newFixedThreadPool(2);
+		
+		ExecutorService eggProductionExecutor = Executors.newFixedThreadPool(2);
 		eggProductionExecutor.execute(() -> {
 			while (!eggProductionExecutor.isShutdown()) {
 				try {
@@ -128,7 +137,27 @@ public class EggService extends Service {
 			}					
 		});
 	}
-	
+
+	void startEggProductionTask_rx() {
+		log("Start the Egg Production Task");
+		
+		// define the HotObservable
+		eggLayingHotObservable = Observable
+				.interval(layingInterval.get(), TimeUnit.MILLISECONDS)
+				.map(i -> {
+					// variance of 30.0 grams
+					double variance = new Random().nextInt(300)/10.0; 
+					// i.e. 40-70 grams
+					double eggWeight = 40+variance;
+					return Egg.createEgg(LocalDate.now(), eggWeight);
+				}).publish();
+		// hot start it
+		eggLayingHotSubscription = eggLayingHotObservable.connect();
+		
+		// connect the shelf to it
+		eggLayingHotObservable.subscribe(egg -> eggShelf.offer(egg));
+	}
+
 	void stopEggProductionTask() {
 		if(eggProductionExecutor.isShutdown()) {
 			log("  ... the executor has already been shutdown!", Level.WARNING);
@@ -144,13 +173,20 @@ public class EggService extends Service {
 		log("The Egg Production Task has been terminated!");
 	}
 	
+	void stopEggProductionTask_rx() {
+		if(!eggLayingHotSubscription.isUnsubscribed()) {
+			eggLayingHotSubscription.unsubscribe();
+			log("The Egg Production Task has been terminated!");
+		}
+	}
+
 	private Callable<Egg> layAnEggTask = () -> { 
 		Thread.sleep(layingInterval.get());		
 		// variance of 30.0 grams
 		double variance = new Random().nextInt(300)/10.0; 
 		// i.e. 40-70 grams
 		double eggWeight = 40+variance;
-		return new Egg(LocalDate.now(), eggWeight);
+		return Egg.createEgg(LocalDate.now(), eggWeight);
 	};
 	
 }
