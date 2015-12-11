@@ -29,7 +29,7 @@ public class TestEggService {
 	 */
 	@Before
 	public void setUp() throws Exception {
-		service.startEggProductionTask();
+		service.startEggProductionTask_rx();
 	}
 
 	/**
@@ -37,7 +37,7 @@ public class TestEggService {
 	 */
 	@After
 	public void tearDown() throws Exception {
-		service.stopEggProductionTask();
+		service.stopEggProductionTask_rx();
 	}
 
 	@Test

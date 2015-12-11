@@ -121,7 +121,7 @@ public class EggService extends Service {
 	void startEggProductionTask() {
 		log("Start the Egg Production Task");
 		
-		ExecutorService eggProductionExecutor = Executors.newFixedThreadPool(2);
+		eggProductionExecutor = Executors.newFixedThreadPool(2);
 		eggProductionExecutor.execute(() -> {
 			while (!eggProductionExecutor.isShutdown()) {
 				try {
